@@ -5,6 +5,7 @@ import numpy as np
 import os
 import rospy
 from sensor_msgs.msg import Image
+from std_msgs.msg import Float32
 from cv_bridge import CvBridge, CvBridgeError 
 
 
@@ -28,13 +29,15 @@ class TruckObjectDetection:
         rospy.init_node ("TruckObjectDetection")
         
         self._imageSubscriber = rospy.Subscriber(rgbImageTopic,Image,self.getImage,queue_size=2)
-        self._resultsPublsiher = rospy.Publisher("/Object_detection_results",Image,queue_size=2)
+        self._objectDetectionImagePublsiher = rospy.Publisher("/Object_detection_images",Image,queue_size=2)
+       
         
         cv2.namedWindow('test', cv2.WINDOW_NORMAL)
 
         self.bridge = CvBridge()
         self._truckObjectDetection = YOLO(MODEL_PATH)
         self.DETECTION_THRESHOLD = 0.6
+        self.DESICION_THRESHOLD = 0.85
 
         self._objDetImg = None
         self._resimgDetection = np.zeros((1440, 1080),dtype=np.int16)
@@ -44,13 +47,30 @@ class TruckObjectDetection:
         
         
     def getImage(self, img): 
+        """
+        @brief gets the image from the topic
+
+        """
+        
         try:
             self._rgbImg = self.bridge.imgmsg_to_cv2(img, desired_encoding="bgr8") 
         except CvBridgeError as e: 
             
             self._rgbImg = None
 
-            
+    def decisionMaking (self): 
+        """
+        @brief handles the grasping between Human and Robot 
+
+        """
+        
+        decisionThreshold = 0.85 
+        predicition = self._predictions
+        
+        # compare predictions against the Threshold
+        
+        if predicition < decisionThreshold : 
+            self._objDetImg
             
     def prepModels(self):
         """!
@@ -160,7 +180,8 @@ class TruckObjectDetection:
         x_center = (bb[0,0] + bb[1,0] )/ 2
         y_center = (bb[0,1] + bb[1,1] )/ 2
         return np.array([x_center, y_center])
-    
+ 
+
     def vizDetections(self, img):
         """!
         @brief Visualizes the detections stored in the object's attributes.
@@ -174,17 +195,22 @@ class TruckObjectDetection:
         for index, box in enumerate(self._boxes):
             class_id = int(self._classes[index])  # Convert class to int
             class_name = class_names[class_id] if class_id < len(class_names) else "Unknown"  # Handle invalid IDs
+
+            # Determine action based on confidence score
+            confidence = self._predictions[index]
             
-            # Assign colors for each class
-            if class_id == 0:
-                color = (150, 150, 255)  # Color for "Truck Cabin"
-            elif class_id == 1:
-                color = (150, 255, 150)  # Color for "Truck Loader"
+            if confidence < self.DESICION_THRESHOLD :
+                # Fill the bounding box with white to remove the object
+                start_point = box[0].astype(int)
+                end_point = box[1].astype(int)
+                img[start_point[1]:end_point[1], start_point[0]:end_point[0]] = (255, 255, 255)  # White fill
             else:
-                color = (255, 255, 255)  # Default color
-            
-            img = TruckObjectDetection.drawBBonImg(img, box, color, class_name)
+                # Draw the bounding box and class name for high-confidence detections
+                color = (150, 150, 255) if class_id == 0 else (150, 255, 150)  # Color for bounding box
+                img = TruckObjectDetection.drawBBonImg(img, box, color, f"{class_name} ({confidence:.2f})")
+
         return img
+
 
 
 
@@ -200,13 +226,13 @@ class TruckObjectDetection:
         """
         start_point = BB[0].astype(int)
         end_point = BB[1].astype(int)
-        thickness = 1
+        thickness = 3
         image = cv2.rectangle(img, start_point, end_point, color, thickness)
 
-        # Add class name above the bounding box
+        # Add class name and confidence score above the bounding box
         font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 0.4
-        font_thickness = 1
+        font_scale = 0.6
+        font_thickness = 2
         text_size = cv2.getTextSize(class_name, font, font_scale, font_thickness)[0]
         text_origin = (start_point[0], start_point[1] - 10)
 
@@ -220,6 +246,7 @@ class TruckObjectDetection:
         )
         cv2.putText(img, class_name, text_origin, font, font_scale, (255, 255, 255), font_thickness)
         return image
+
 
     
 if __name__ == "__main__":
