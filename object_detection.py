@@ -116,6 +116,7 @@ class TruckObjectDetection:
         while not rospy.is_shutdown():
             if self._rgbImg is not None:
                 self.analyseOneImg(self._rgbImg)
+               # self._objectDetectionImagePublsiher (self._objDetImg)
             else:
                 rospy.logwarn("No image received yet. Waiting...")
             rate.sleep()
@@ -147,6 +148,7 @@ class TruckObjectDetection:
         self._classes = results.boxes.cls.cpu().numpy()                    
         self.filterDetection(self.DETECTION_THRESHOLD)
         self._objDetImg = self.vizDetections(img)
+        
 
         # Display the image
         cv2.imshow("test", self._objDetImg)
