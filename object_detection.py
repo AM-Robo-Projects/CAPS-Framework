@@ -57,20 +57,6 @@ class TruckObjectDetection:
         except CvBridgeError as e: 
             
             self._rgbImg = None
-
-    def decisionMaking (self): 
-        """
-        @brief handles the grasping between Human and Robot 
-
-        """
-        
-        decisionThreshold = 0.85 
-        predicition = self._predictions
-        
-        # compare predictions against the Threshold
-        
-        if predicition < decisionThreshold : 
-            self._objDetImg
             
     def prepModels(self):
         """!
@@ -149,11 +135,18 @@ class TruckObjectDetection:
         self.filterDetection(self.DETECTION_THRESHOLD)
         self._objDetImg = self.vizDetections(img)
         
-
+        #TODO define the published image should contain the undesired object or the high confidence object.
+        try:
+            ros_image = self.bridge.cv2_to_imgmsg(self._objDetImg, encoding="bgr8")
+            self._objectDetectionImagePublsiher.publish(ros_image)
+        except CvBridgeError as e:
+            rospy.logerr(f"Error converting OpenCV image to ROS Image: {e}")
         # Display the image
         cv2.imshow("test", self._objDetImg)
         cv2.waitKey(1)
 
+   
+    #TODO Add ImgPublisher function to remove bbox and keep white filled box and publish to grasping node     
     
     #Threshold 
     def filterDetection(self, minPred):
@@ -206,6 +199,7 @@ class TruckObjectDetection:
                 start_point = box[0].astype(int)
                 end_point = box[1].astype(int)
                 img[start_point[1]:end_point[1], start_point[0]:end_point[0]] = (255, 255, 255)  # White fill
+                        
             else:
                 # Draw the bounding box and class name for high-confidence detections
                 color = (150, 150, 255) if class_id == 0 else (150, 255, 150)  # Color for bounding box

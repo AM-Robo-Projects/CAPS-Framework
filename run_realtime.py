@@ -14,7 +14,8 @@ from inference.post_process import post_process_output
 from utils.data.camera_data import CameraData
 from utils.visualisation.plot import save_results, plot_results, plot_grasp
 from utils.dataset_processing.grasp import detect_grasps
-
+import cv2
+from cv_bridge import CvBridge,CvBridgeError 
 logging.basicConfig(level=logging.INFO)
 
 
@@ -146,12 +147,21 @@ def run():
         #        no_grasps=args.n_grasps,
         #        grasp_width_img=width_img 
         #    )
-                
+
+def getRGB (img) :
+    try:
+        rgb_img = CvBridge.imgmsg_to_cv2(img,desired_encoding="rgb8") 
+    except CvBridgeError as e :
+         print(e)      
+    return rgb_img  
+             
+
 if __name__ == '__main__':
 
     try:
         rospy.init_node('gr_net_node')
         grasp_publisher = rospy.Publisher("/grasping_pose",Float64MultiArray,queue_size=10)
+        img_subscriber = rospy.Subscriber("/Object_detection_images",Image,getRGB,queue_size=2)
         run()
         rospy.spin()
     except RuntimeError as e :
