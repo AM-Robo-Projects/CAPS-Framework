@@ -18,6 +18,12 @@ from utils.dataset_processing.grasp import detect_grasps
 logging.basicConfig(level=logging.INFO)
 
 
+
+'''
+@brief :  ROS node that publishes the detected grasp pose (x,y,z,theta,width)using the realsense camera 
+
+'''
+
 def parse_args():
         parser = argparse.ArgumentParser(description='Evaluate network')
         parser.add_argument('--network', type=str, default='',
@@ -145,7 +151,7 @@ if __name__ == '__main__':
 
     try:
         rospy.init_node('gr_net_node')
-        grasp_publisher = rospy.Publisher("/result",Float64MultiArray,queue_size=10)
+        grasp_publisher = rospy.Publisher("/grasping_pose",Float64MultiArray,queue_size=10)
         run()
         rospy.spin()
     except RuntimeError as e :
