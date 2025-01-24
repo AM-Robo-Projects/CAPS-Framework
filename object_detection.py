@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 import cv2
 import numpy as np
-import rembg
+#import rembg
 import os
 import rospy
 from sensor_msgs.msg import Image
@@ -28,9 +28,11 @@ class TruckObjectDetection:
         rospy.init_node ("TruckObjectDetection")
         
         self._imageSubscriber = rospy.Subscriber(rgbImageTopic,Image,self.getImage,queue_size=2)
+        self._resultsPublsiher = rospy.Publisher("/Object_detection_results",Image,queue_size=2)
+        
         cv2.namedWindow('test', cv2.WINDOW_NORMAL)
 
-        self._cv_bridge = CvBridge()
+        self.bridge = CvBridge()
         self._truckObjectDetection = YOLO(MODEL_PATH)
         self.DETECTION_THRESHOLD = 0.6
 
@@ -41,12 +43,13 @@ class TruckObjectDetection:
         self.prepModels()
         
         
-        
-    def getImage (self,img): 
-        try :
-           self._rgbImg = self._cv_bridge.imgmsg_to_cv2(img,desired_encoding="passthrough") 
-        except CvBridgeError as e : 
-            rospy.loginfo(e)
+    def getImage(self, img): 
+        try:
+            self._rgbImg = self.bridge.imgmsg_to_cv2(img, desired_encoding="passthrough") 
+        except CvBridgeError as e: 
+            rospy.logerr(f"Error converting image: {e}")
+            self._rgbImg = None
+
             
             
     def prepModels(self):
@@ -103,14 +106,17 @@ class TruckObjectDetection:
 
         return
     
-    def runRos (self) :
+    
+    def runRos(self):
         rate = rospy.Rate(10)
-        
-        while not rospy.is_shutdown() :
-            
-            self.analyseOneImg(self._rgbImg)
-            rate.sleep ()
-        rospy.spin()
+
+        while not rospy.is_shutdown():
+            if self._rgbImg is not None:
+                self.analyseOneImg(self._rgbImg)
+            else:
+                rospy.logwarn("No image received yet. Waiting...")
+            rate.sleep()
+
     
     def analyseOneImg(self, img):
         """!
@@ -119,30 +125,30 @@ class TruckObjectDetection:
         Parameters : 
             @param self => object of the class
             @param img => np array of the RGB image
-            @param cableType => type of the cable that is being analysed
-            @param doBending => do the bending correction analysis
-            @param doAngle => do th angle correction analysis
-
         """
-        results =None
-        
+        if img is None:
+            rospy.logwarn("Input image is None. Skipping analysis.")
+            return
+
+        # Run YOLO object detection
+        try:
+            results = self._truckObjectDetection(img, verbose=False)[0]
+        except Exception as e:
+            rospy.logerr(f"Error during object detection: {e}")
+            return
+
+        # Process results
         self._resimgDetection = results.plot()
-        self._boxes = results.boxes.xyxy.numpy().reshape((-1,2,2))
-        self._predictions = results.boxes.conf.numpy()
-        self._classes = results.boxes.cls.numpy()
+        self._boxes = results.boxes.xyxy.cpu().numpy().reshape((-1, 2, 2))  
+        self._predictions = results.boxes.conf.cpu().numpy()            
+        self._classes = results.boxes.cls.cpu().numpy()                    
         self.filterDetection(self.DETECTION_THRESHOLD)
         self._objDetImg = self.vizDetections(img)
-        
 
+        # Display the image
         cv2.imshow("test", self._objDetImg)
         cv2.waitKey(1)
-        # print ("Good")
-        # print(self._boxesGoodBlack)
-        # print("Meassured")
-        # print(self._boxes)
-        # print(self._classes)
-        # print(self._predictions)
-    
+
     
     #Threshold 
     def filterDetection(self, minPred):
@@ -172,22 +178,22 @@ class TruckObjectDetection:
         y_center = (bb[0,1] + bb[1,1] )/ 2
         return np.array([x_center, y_center])
     
-    def vizDetections(self,img):
+    def vizDetections(self, img):
         """!
-        @brief visualises the detections stores in the objects attributes
-
-        Parameters : 
-            @param self => object of the class
-            @param img => image to draw onto
-
+        @brief visualizes the detections stored in the object's attributes
         """
+        if len(self._boxes) == 0:
+            rospy.logwarn("No detections to visualize.")
+            return img
+
         img = img.copy()
         for index, box in enumerate(self._boxes):
-            if (self._classes[index] == 0):
-                img = TruckObjectDetection.drawBBonImg(img, box,(150,150,255))
-            elif (self._classes[index] == 1):
-                img = TruckObjectDetection.drawBBonImg(img, box,(150,255,150))
+            if self._classes[index] == 0:
+                img = TruckObjectDetection.drawBBonImg(img, box, (150, 150, 255))
+            elif self._classes[index] == 1:
+                img = TruckObjectDetection.drawBBonImg(img, box, (150, 255, 150))
         return img
+
 
     def drawBBonImg(img, BB, color= (36,255,12)):
         """!
