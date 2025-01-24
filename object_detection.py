@@ -45,9 +45,9 @@ class TruckObjectDetection:
         
     def getImage(self, img): 
         try:
-            self._rgbImg = self.bridge.imgmsg_to_cv2(img, desired_encoding="passthrough") 
+            self._rgbImg = self.bridge.imgmsg_to_cv2(img, desired_encoding="bgr8") 
         except CvBridgeError as e: 
-            rospy.logerr(f"Error converting image: {e}")
+            
             self._rgbImg = None
 
             
@@ -80,24 +80,7 @@ class TruckObjectDetection:
         #os.makedirs(os.path.join(outDir, "cnt"), exist_ok= True)
         for entry in pics:
             img = cv2.imread(os.path.join(inDir,entry))
-            #outImg = self.bgremove2(img)
-            #outImg = rembg.remove(img, post_process_mask=True)
-            #try:
-            # results = self._model(img, verbose=False)[0].cpu()
-            # #self._resimg = results.plot()
-            # self._boxes = results.boxes.xyxy.numpy().reshape((-1,2,2))
-            # self._predictions = results.boxes.conf.numpy()
-            # self._classes = results.boxes.cls.numpy()
-            # self.filterDetection(self.DETECTION_THRESHOLD)
-            # # self._boxes[:,0,:] -= self.PADDING 
-            # # self._boxes[:,1,:] += self.PADDING 
-            # #self._resimg = self.vizDetections(img)
-            # #cv2.imwrite(os.path.join(outDir, entry), self._resimg)
-            # #self._resimg = SideObjectDetection.drawBBonImg(img, self._boxes[0])
-            # #except:
-            #     #print("No Object was found in picture")
-            #     #self._resimg = None
-            # self._resimg = self.compareToGood(img)
+
             try:
                 self.analyseOneImg(img)
                 #cv2.imwrite(os.path.join(outDir, entry), self._resimgBending)
@@ -180,36 +163,64 @@ class TruckObjectDetection:
     
     def vizDetections(self, img):
         """!
-        @brief visualizes the detections stored in the object's attributes
-        """
-        if len(self._boxes) == 0:
-            rospy.logwarn("No detections to visualize.")
-            return img
+        @brief Visualizes the detections stored in the object's attributes.
 
+        Parameters:
+            @param self => Object of the class
+            @param img => Image to draw onto
+        """
         img = img.copy()
+        class_names = ["Truck Cabin", "Truck Loader"]  # Map class IDs to names
         for index, box in enumerate(self._boxes):
-            if self._classes[index] == 0:
-                img = TruckObjectDetection.drawBBonImg(img, box, (150, 150, 255))
-            elif self._classes[index] == 1:
-                img = TruckObjectDetection.drawBBonImg(img, box, (150, 255, 150))
+            class_id = int(self._classes[index])  # Convert class to int
+            class_name = class_names[class_id] if class_id < len(class_names) else "Unknown"  # Handle invalid IDs
+            
+            # Assign colors for each class
+            if class_id == 0:
+                color = (150, 150, 255)  # Color for "Truck Cabin"
+            elif class_id == 1:
+                color = (150, 255, 150)  # Color for "Truck Loader"
+            else:
+                color = (255, 255, 255)  # Default color
+            
+            img = TruckObjectDetection.drawBBonImg(img, box, color, class_name)
         return img
 
 
-    def drawBBonImg(img, BB, color= (36,255,12)):
+
+    def drawBBonImg(img, BB, color=(36, 255, 12), class_name="Unknown"):
         """!
-        @brief draws a bounding box in the format [[upper left x, upper left y], [lower right x, lower right y]] on th given image 
+        @brief Draws a bounding box and class name on the given image.
 
-        Parameters : 
-            @param img => image to draw onto
-            @param BB => bounding box
-            @param color = (36,255,12) => drawing color
-
+        Parameters:
+            @param img => Image to draw onto
+            @param BB => Bounding box in the format [[upper left x, upper left y], [lower right x, lower right y]]
+            @param color => Color of the bounding box (default is green)
+            @param class_name => Name of the class to display (default is "Unknown")
         """
         start_point = BB[0].astype(int)
         end_point = BB[1].astype(int)
-        thickness = 3
-        image = cv2.rectangle(img, start_point, end_point, color, thickness) 
+        thickness = 1
+        image = cv2.rectangle(img, start_point, end_point, color, thickness)
+
+        # Add class name above the bounding box
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.4
+        font_thickness = 1
+        text_size = cv2.getTextSize(class_name, font, font_scale, font_thickness)[0]
+        text_origin = (start_point[0], start_point[1] - 10)
+
+        # Draw a background rectangle for the text for better visibility
+        cv2.rectangle(
+            img,
+            (text_origin[0], text_origin[1] - text_size[1] - 5),
+            (text_origin[0] + text_size[0], text_origin[1] + 5),
+            (0, 0, 0),
+            -1,
+        )
+        cv2.putText(img, class_name, text_origin, font, font_scale, (255, 255, 255), font_thickness)
         return image
+
     
 if __name__ == "__main__":
     rgb_topic = "/kinect1/color/image_raw"
