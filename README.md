@@ -40,7 +40,7 @@ $ pip install -r requirements.txt
 ## Datasets
 
 This repository uses the [Cornell Grasping Dataset](https://www.kaggle.com/oneoneliu/cornell-grasp) for grasp pose estimation algorithms
-and uses a synthetic dataset for object detection, the dataset is generated using this [pipeline](https://github.com/KulunuOS/gazebo_dataset_generation)and our CAD data.  
+and uses a synthetic dataset for object detection, the dataset is generated using this [pipeline](https://github.com/KulunuOS/gazebo_dataset_generation) and our CAD data.  
 
 
 #### Cornell Grasping Dataset
