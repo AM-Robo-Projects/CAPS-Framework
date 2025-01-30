@@ -2,7 +2,7 @@
 
 CAPS Framework allows for interchangable grasping between Humans and Robots in the context of Human robot collaboration assembly process.
 
-Our framework utilizes synthetic data generation, object detection and grasp pose estimation, where all synchronously work to achieve dynamic interchangability between Human and Robots in assembly process as well as flexibilit.  
+Our framework utilizes synthetic data generation, object detection and grasp pose estimation, where all synchronously work to achieve dynamic interchangability between Human and Robots in assembly process as well as flexibility.  
 
 
 ## Requirements
@@ -95,5 +95,6 @@ A task can be executed using the relevant run script. All task scripts are named
 $ cd CAPS-Framework 
 $ python run_realtime.py --network "<ADD_PATH_TO_TRAINED-MODEL>/epoch_08_iou_1.00"
 ```
+
 
 
