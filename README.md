@@ -1,6 +1,8 @@
+## Description 
 
+CAPS Framwork is a framework that allows for interchangable grasping between Humans and Robots in the context of Human robot collaboration assembly process.
 
-This repository contains the implementation of the Novel Proposed CNN for detecting grasp poses : 
+Our framework utilizes synthetic data generation, object detection and grasp pose estimation, where all synchronously work to achieve dynamic interchangability between Human and Robots in assembly process as well as flexibilit.  
 
 
 ## Requirements
@@ -32,7 +34,7 @@ $ source venv/bin/activate
 
 - Install the requirements
 ```bash
-$ cd CAPS-FRAMEWORK- 
+$ cd CAPS-Framework
 $ pip install -r requirements.txt
 ```
 
@@ -59,7 +61,7 @@ Example for Cornell dataset:
 python train_network.py --dataset cornell --dataset-path <Path To Dataset> --description training_cornell
 ```
 
-##Grasping Model Evaluation
+## Grasping Model Evaluation
 
 The trained network can be evaluated using the `evaluate.py` script.  Run `evaluate.py --help` for a full set of options.
 
@@ -71,17 +73,26 @@ python evaluate.py --network <Path to Trained Network> --dataset cornell --datas
 
 
 ## Run Tasks
+
+This repo has two main tasks, the object detection task which uses the YOLOV8 trained on our synthetic dataset for object deteection and a grasp pose estimation algorithm which is trained on the cornell grasping dataset. 
+
+
+### Running Object Detection 
+```bash
+cd CAPS-Framework
+```
+The object detection code uses the ROS topics from our cameras so make sure to change the topic name.
+
+```bash
+python object_detection.py
+```
+
+### Running Grasping Pretrained Model 
 A task can be executed using the relevant run script. All task scripts are named as `run_<task name>.py`. For example, to run the grasp generator run:
-```bash
-python run_grasp_generator.py
-```
-```bash
-python run_realtime.py --network "<ADD_PATH_TO>/epoch_08_iou_1.00"
 
-```
 
 ```bash
-$ cd robotic-grasping-CNN
+$ cd CAPS-Framework 
 $ python run_realtime.py --network "<ADD_PATH_TO_TRAINED-MODEL>/epoch_08_iou_1.00"
 ```
 
