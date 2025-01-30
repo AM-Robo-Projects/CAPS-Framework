@@ -1,6 +1,6 @@
 ## Description 
 
-CAPS Framwork is a framework that allows for interchangable grasping between Humans and Robots in the context of Human robot collaboration assembly process.
+CAPS Framework allows for interchangable grasping between Humans and Robots in the context of Human robot collaboration assembly process.
 
 Our framework utilizes synthetic data generation, object detection and grasp pose estimation, where all synchronously work to achieve dynamic interchangability between Human and Robots in assembly process as well as flexibilit.  
 
