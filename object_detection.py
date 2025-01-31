@@ -186,7 +186,7 @@ class TruckObjectDetection:
             @param img => Image to draw onto
         """
         img = img.copy()
-        class_names = ["Truck Cabin", "Truck Loader"]  # Map class IDs to names
+        class_names = ["Truck Cabin", "Truck Loader", "Truck Chassis"]  # Map class IDs to names
         for index, box in enumerate(self._boxes):
             class_id = int(self._classes[index])  # Convert class to int
             class_name = class_names[class_id] if class_id < len(class_names) else "Unknown"  # Handle invalid IDs
