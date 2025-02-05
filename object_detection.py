@@ -11,7 +11,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 #TODO
 
-MODEL_PATH = '/home/abdelrahman/robotic-grasping-CNN_1/V1_640_epochs50_yolov8l_BEST/best.pt'
+MODEL_PATH = '/home/leitrechner/CAPS-Framework-/V1_640_epochs50_yolov8l_BEST/best.pt'
 
 class TruckObjectDetection:
     """!
@@ -37,11 +37,11 @@ class TruckObjectDetection:
         self.bridge = CvBridge()
         self._truckObjectDetection = YOLO(MODEL_PATH)
         self.DETECTION_THRESHOLD = 0.6
-        self.DESICION_THRESHOLD = 0.85
+        self.DESICION_THRESHOLD = 0.6
 
         self._objDetImg = None
         self._resimgDetection = np.zeros((1440, 1080),dtype=np.int16)
-
+        self._rgbImg = None
         print("preping models")
         self.prepModels()
         
@@ -246,6 +246,6 @@ class TruckObjectDetection:
 
     
 if __name__ == "__main__":
-    rgb_topic = "/kinect1/color/image_raw"
+    rgb_topic = "/camera/color/image_raw"
     cable = TruckObjectDetection(MODEL_PATH,rgb_topic)
     cable.runRos()
