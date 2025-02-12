@@ -7,7 +7,7 @@ import rospy
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float32
 from cv_bridge import CvBridge, CvBridgeError 
-
+import random
 
 #TODO
 
@@ -27,17 +27,19 @@ class TruckObjectDetection:
 
         """
         rospy.init_node ("TruckObjectDetection")
+        self.bridge = CvBridge()
         
+
         self._imageSubscriber = rospy.Subscriber(rgbImageTopic,Image,self.getImage,queue_size=2)
         self._objectDetectionImagePublsiher = rospy.Publisher("/Object_detection_images",Image,queue_size=2)
        
-        
         cv2.namedWindow('test', cv2.WINDOW_NORMAL)
+        
 
-        self.bridge = CvBridge()
+        
         self._truckObjectDetection = YOLO(MODEL_PATH)
-        self.DETECTION_THRESHOLD = 0.6
-        self.DESICION_THRESHOLD = 0.6
+        self.DETECTION_THRESHOLD = 0.75
+        self.DESICION_THRESHOLD = 0.5
 
         self._objDetImg = None
         self._resimgDetection = np.zeros((1440, 1080),dtype=np.int16)
@@ -129,7 +131,8 @@ class TruckObjectDetection:
 
         # Process results
         self._resimgDetection = results.plot()
-        self._boxes = results.boxes.xyxy.cpu().numpy().reshape((-1, 2, 2))  
+        self._boxes = results.boxes.xyxy.cpu().numpy().reshape((-1, 2, 2))
+        print(self._boxes.shape)  # Verify the shape of bounding boxes  
         self._predictions = results.boxes.conf.cpu().numpy()            
         self._classes = results.boxes.cls.cpu().numpy()                    
         self.filterDetection(self.DETECTION_THRESHOLD)
@@ -144,7 +147,7 @@ class TruckObjectDetection:
         # Display the image
         cv2.imshow("test", self._objDetImg)
         cv2.waitKey(1)
-
+  
    
     #TODO Add ImgPublisher function to remove bbox and keep white filled box and publish to grasping node     
     
@@ -177,62 +180,51 @@ class TruckObjectDetection:
         return np.array([x_center, y_center])
  
 
+
+
     def vizDetections(self, img):
-        """!
-        @brief Visualizes the detections stored in the object's attributes.
-
-        Parameters:
-            @param self => Object of the class
-            @param img => Image to draw onto
-        """
         img = img.copy()
-        class_names = ["Truck Cabin", "Truck Loader", "Truck Chassis"]  # Map class IDs to names
-        for index, box in enumerate(self._boxes):
-            class_id = int(self._classes[index])  # Convert class to int
-            class_name = class_names[class_id] if class_id < len(class_names) else "Unknown"  # Handle invalid IDs
+        class_names = ["Truck Cabin", "Truck Loader"]#, "Truck Chassis"]
 
-            # Determine action based on confidence score
+        for index, box in enumerate(self._boxes):
+            class_id = int(self._classes[index])
+            class_name = class_names[class_id] if class_id < len(class_names) else "Unknown"
             confidence = self._predictions[index]
+
+            # Generate a random color or use a fixed color map
+            color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+
+            if confidence < self.DESICION_THRESHOLD:
+                # Remove the object by filling its bounding box with white
+                start_point = tuple(map(int, box[0]))
+                end_point = tuple(map(int, box[1]))
+                img[start_point[1]:end_point[1], start_point[0]:end_point[0]] = (255, 255, 255)
             
-            if confidence < self.DESICION_THRESHOLD :
-                # Fill the bounding box with white to remove the object
-                start_point = box[0].astype(int)
-                end_point = box[1].astype(int)
-                img[start_point[1]:end_point[1], start_point[0]:end_point[0]] = (255, 255, 255)  # White fill
-                        
-            else:
-                # Draw the bounding box and class name for high-confidence detections
-                color = (150, 150, 255) if class_id == 0 else (150, 255, 150)  # Color for bounding box
-                img = TruckObjectDetection.drawBBonImg(img, box, color, f"{class_name} ({confidence:.2f})")
+        
+                   
+            elif confidence > self.DETECTION_THRESHOLD:
+
+                # Draw bounding box and label for high-confidence detections
+                img = self.drawBBonImg(img, box, color, f"{class_name} ({confidence:.2f})")
 
         return img
 
-
-
-
-    def drawBBonImg(img, BB, color=(36, 255, 12), class_name="Unknown"):
-        """!
-        @brief Draws a bounding box and class name on the given image.
-
-        Parameters:
-            @param img => Image to draw onto
-            @param BB => Bounding box in the format [[upper left x, upper left y], [lower right x, lower right y]]
-            @param color => Color of the bounding box (default is green)
-            @param class_name => Name of the class to display (default is "Unknown")
-        """
-        start_point = BB[0].astype(int)
-        end_point = BB[1].astype(int)
+    def drawBBonImg(self, img, BB, color=(36, 255, 12), class_name="Unknown"):
+        start_point = tuple(map(int, BB[0]))
+        end_point = tuple(map(int, BB[1]))
         thickness = 3
-        image = cv2.rectangle(img, start_point, end_point, color, thickness)
 
-        # Add class name and confidence score above the bounding box
+        # Draw the bounding box
+        cv2.rectangle(img, start_point, end_point, color, thickness)
+
+        # Draw the class name label above the bounding box
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.6
         font_thickness = 2
         text_size = cv2.getTextSize(class_name, font, font_scale, font_thickness)[0]
-        text_origin = (start_point[0], start_point[1] - 10)
+        text_origin = (start_point[0], max(start_point[1] - 10, text_size[1] + 5))
 
-        # Draw a background rectangle for the text for better visibility
+        # Background rectangle for text
         cv2.rectangle(
             img,
             (text_origin[0], text_origin[1] - text_size[1] - 5),
@@ -240,8 +232,11 @@ class TruckObjectDetection:
             (0, 0, 0),
             -1,
         )
-        cv2.putText(img, class_name, text_origin, font, font_scale, (255, 255, 255), font_thickness)
-        return image
+        
+        # Write text on the image
+        cv2.putText(img, class_name, (text_origin[0], text_origin[1]), font, font_scale, (255, 255, 255), font_thickness)
+
+        return img
 
 
     

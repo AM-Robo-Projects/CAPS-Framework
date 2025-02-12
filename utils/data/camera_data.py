@@ -13,11 +13,7 @@ class CameraData:
                  height=480,
                  output_size=224,
                  include_depth=True,
-                 include_rgb=True,
-                 fx=554.254691191187,  # Focal length in x-axis
-                 fy=554.254691191187,  # Focal length in y-axis
-                 ppx=320.5,  # Principal point x-coordinate
-                 ppy=240.5 # Principal point y-coordinate
+                 include_rgb=True
                  ):
         """
         :param output_size: Image output size in pixels (square)
@@ -27,12 +23,7 @@ class CameraData:
         self.output_size = output_size
         self.include_depth = include_depth
         self.include_rgb = include_rgb
-        self.fx = fx
-        self.fy = fy
-        self.ppx = ppx
-        self.ppy = ppy
-        
-        
+
         if include_depth is False and include_rgb is False:
             raise ValueError('At least one of Depth or RGB must be specified.')
 

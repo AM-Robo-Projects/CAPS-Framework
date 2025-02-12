@@ -38,7 +38,7 @@ class GraspGenerator:
 
         # Load camera pose and depth scale (from running calibration)
         self.cam_pose = np.loadtxt('saved_data/camera_pose.txt', delimiter=' ')
-        self.cam_depth_scale = np.loadtxt('saved_data/camera_depth_scale.txt', delimiter=' ') #0.001
+        self.cam_depth_scale = 0.001
 
         homedir = os.path.join(os.path.expanduser('~'), "grasp-comms")
         self.grasp_request = os.path.join(homedir, "grasp_request.npy")
@@ -74,7 +74,7 @@ class GraspGenerator:
         grasps = detect_grasps(q_img, ang_img, width_img)
 
         # Get grasp position from model output
-        pos_z = depth[grasps[0].center[0] + self.cam_data.top_left[0], grasps[0].center[1] + self.cam_data.top_left[1]] * self.cam_depth_scale - 0.04
+        pos_z = depth[grasps[0].center[0] + self.cam_data.top_left[0], grasps[0].center[1] + self.cam_data.top_left[1]] * self.cam_depth_scale #- 0.04
         pos_x = np.multiply(grasps[0].center[1] + self.cam_data.top_left[1] - self.camera.intrinsics.ppx,
                             pos_z / self.camera.intrinsics.fx)
         pos_y = np.multiply(grasps[0].center[0] + self.cam_data.top_left[0] - self.camera.intrinsics.ppy,
