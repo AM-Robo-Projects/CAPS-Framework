@@ -9,15 +9,15 @@ class CameraData:
     Dataset wrapper for the camera data.
     """
     def __init__(self,
-                 width=1280,
-                 height=720,
+                 width=640,
+                 height=480,
                  output_size=224,
                  include_depth=True,
                  include_rgb=True,
-                 fx=606.7401123046875,  # Focal length in x-axis
-                 fy=606.6471557617188,  # Focal length in y-axis
-                 ppx=640.8602294921875,  # Principal point x-coordinate
-                 ppy=365.228515625# Principal point y-coordinate
+                 fx=904.2736206054688,  # Focal length in x-axis
+                 fy=904.2736206054688,  # Focal length in y-axis
+                 ppx=631.90087890625,  # Principal point x-coordinate
+                 ppy=375.46514892578125# Principal point y-coordinate
                  ):
         """
         :param output_size: Image output size in pixels (square)
@@ -37,11 +37,11 @@ class CameraData:
             raise ValueError('At least one of Depth or RGB must be specified.')
 
         left = (width - output_size) // 2
-        #top = (height - output_size) // 2
-        top = height - output_size
+        top = (height - output_size) // 2
+        #top = height - output_size
         right = (width + output_size) // 2
-        #bottom = (height + output_size) // 2
-        bottom = height
+        bottom = (height + output_size) // 2
+        #bottom = height
         self.bottom_right = (bottom, right)
         self.top_left = (top, left)
 

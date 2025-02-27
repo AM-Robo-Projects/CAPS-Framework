@@ -11,7 +11,7 @@ import random
 
 #TODO
 
-MODEL_PATH = '/home/leitrechner/CAPS-Framework-/V1_640_epochs50_yolov8l_BEST/best.pt'
+MODEL_PATH = '/home/abdelrahman/CAPS-Framework/3objectsDetection/best.pt'
 
 class TruckObjectDetection:
     """!
@@ -184,7 +184,7 @@ class TruckObjectDetection:
 
     def vizDetections(self, img):
         img = img.copy()
-        class_names = ["Truck Cabin", "Truck Loader"]#, "Truck Chassis"]
+        class_names = ["Truck Cabin","Truck Chassis","Truck Loader"]
 
         for index, box in enumerate(self._boxes):
             class_id = int(self._classes[index])

@@ -27,7 +27,7 @@ def parse_args():
                         help='Use RGB image for evaluation (1/0)')
     parser.add_argument('--n-grasps', type=int, default=1,
                         help='Number of grasps to consider per image')
-    parser.add_argument('--cpu', dest='force_cpu', action='store_true', default=False,
+    parser.add_argument('--cpu', dest='force_cpu', action='store_true', default=True,
                         help='Force code to run in CPU mode')
 
     args = parser.parse_args()
@@ -52,12 +52,12 @@ def run():
                                         [0.7201,  0.0393,  0.6928,  -0.32341],
                                         [0.0000,  0.0000,  0.0000,  1.0000]
                                     ])
-        
 
  
     # Load Network
     logging.info('Loading model...')
-    net = torch.load(args.network)
+    #net = torch.load(args.network)
+    net = torch.load(args.network, map_location=torch.device('cpu'))
     logging.info('Done')
 
     # Get the compute device
@@ -76,6 +76,7 @@ def run():
 
             x, depth_img, rgb_img = cam_data.get_data(rgb=rgb, depth=depth)
             with torch.no_grad():
+                
                 xc = x.to(device)
                 pred = net.predict(xc)
 

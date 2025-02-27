@@ -42,22 +42,22 @@ class GraspDetector :
        
         try:
             self._rgb_image = self._bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
-            
+            print(f"RGB : {self._rgb_image.shape}")
         except CvBridgeError as e:
             rospy.logerr(f"Error converting RGB image: {e}")
 
     def depth_callback(self,msg):
         
         try:
-            self._depth_image = self._bridge.imgmsg_to_cv2(msg, desired_encoding="16UC1")
-          
+            self._depth_image = self._bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+
 
         except CvBridgeError as e:
             rospy.logerr(f"Error converting depth image: {e}")
 
     def parse_args(self):
         parser = argparse.ArgumentParser(description='Evaluate network')
-        parser.add_argument('--network', type=str, default='/home/leitrechner/robotic-grasping-CNN_kopro/trained-models/epoch_08_iou_1.00',
+        parser.add_argument('--network', type=str, default='/home/abdelrahman/CAPS-Framework/trained-models/epoch_08_iou_1.00',
                             help='Path to saved network to evaluate')
         parser.add_argument('--use-depth', type=int, default=1,
                             help='Use Depth image for evaluation (1/0)')
@@ -84,19 +84,20 @@ class GraspDetector :
             print(e)
 
 
-        cam_depth_scale = 1
+        cam_depth_scale = 0.001
 
         camera2robot = np.array([
-                [-0.2868,  0.0334, -0.9574,  0.2028],
-                [-0.4037, -0.9105,  0.0892,  1.2192],
-                [-0.8688,  0.4121,  0.2746,  1.0699],
-                [ 0.0000,  0.0000,  0.0000,  1.0000]
-            ])
+                                            [0.6927,  0.0172, -0.7210,  0.26677],
+                                            [-0.0402, 0.9991, -0.0148,  0.45252],
+                                            [0.7201,  0.0393,  0.6928,  -0.32341],
+                                            [0.0000,  0.0000,  0.0000,  1.0000]
+                                        ])
 
         # Load Network
         #logging.info('Loading model...')
         print ("loading model")
-        net = torch.load(args.network)
+        #net = torch.load(args.network)
+        net = torch.load(args.network, map_location=torch.device('cpu'))
         device = get_device(args.force_cpu)
         print ("model loaded")
         #logging.info('Model loaded.')
@@ -104,7 +105,7 @@ class GraspDetector :
         try:
             fig = plt.figure(figsize=(10, 10))
             print ("plotting")
-            rate = rospy.Rate(20)
+            rate = rospy.Rate(10)
 
             while not rospy.is_shutdown():
                 if self._rgb_image is None or self._depth_image is None:
@@ -139,26 +140,35 @@ class GraspDetector :
                     try : 
                     # Grasp position calculation
                     
-                        pos_z = self._depth_image[grasps[0].center[0] + cam_data.top_left[0], grasps[0].center[1] + cam_data.top_left[1]] * cam_depth_scale 
-                        print(pos_z)
 
+                        pos_z = self._depth_image[grasps[0].center[0] + cam_data.top_left[0], grasps[0].center[1] + cam_data.top_left[1]] * cam_depth_scale 
+                        
                         pos_x = np.multiply(grasps[0].center[1] + cam_data.top_left[1] - cam_data.ppx,
-                                            pos_z / cam_data.fx)
-                        pos_y = np.multiply(grasps[0].center[0] + cam_data.top_left[0] - cam_data.ppy,
-                                            pos_z / cam_data.fy)
+                                    pos_z / cam_data.fx)
+                    
+                        pos_y = np.multiply(grasps[0].center[0] +cam_data.top_left[0] - cam_data.ppy,
+                                    pos_z / cam_data.fy)
+                        
                     except RuntimeError as e :
                         print (f"ERROR : {e}")
 
 
+                   
                     target = np.asarray([pos_x, pos_y, pos_z])
                     
                     target.shape = (3, 1)
+                    print('target: ', target)
 
                     target_position = np.dot(camera2robot[0:3, 0:3], target) + camera2robot[0:3, 3:]
                     target_position = target_position[0:3, 0]
-                    target_angle = grasps[0].angle + (np.pi / 6)
+
+                    #angle = np.asarray([0, 0, grasps[0].angle])
+                    #angle.shape = (3, 1)
+                    #target_angle = np.dot(camera2robot[0:3, 0:3], angle) 
+                    target_angle = grasps[0].angle + (np.pi/6)
+
                     width = grasps[0].width
-                   
+                    print(width)
 
                     grasp_pose = grasp_pose = np.append(target_position, [target_angle, width])
                     # x,y,z, rotation around z and width of gripper
@@ -167,6 +177,11 @@ class GraspDetector :
                     grasp.data = grasp_pose
                     
                     self.grasp_publisher.publish(grasp)
+
+                     #plot_grasp(fig=fig,
+                #            rgb_img=cam_data.get_rgb(rgb, False),                 
+                #            grasps=grasps,
+                #            save=False)
 
                     plot_results(fig=fig,
                                 rgb_img =cam_data.get_rgb(self._rgb_image, False),
@@ -185,8 +200,8 @@ class GraspDetector :
 
 if __name__ == '__main__':
     
-    rgb_topic = '/kinect_left/rgb/image_raw'
-    depth_topic = '/kinect_left/depth_to_rgb/image_raw'
+    rgb_topic = '/camera/color/image_raw'
+    depth_topic = "/camera/aligned_depth_to_color/image_raw"
     Grasp = GraspDetector(rgb_topic,depth_topic)
     Grasp.run()
     

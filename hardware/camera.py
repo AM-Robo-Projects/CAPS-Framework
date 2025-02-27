@@ -1,11 +1,13 @@
+# filepath: /home/abdelrahman/CAPS-Framework/hardware/camera.py
 import logging
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pyrealsense2 as rs
+import rospy
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge, CvBridgeError
 
 logger = logging.getLogger(__name__)
-
 
 class RealSenseCamera:
     def __init__(self,
@@ -21,6 +23,11 @@ class RealSenseCamera:
         self.pipeline = None
         self.scale = None
         self.intrinsics = None
+        self.bridge = CvBridge()
+        #rospy.init_node('camera', anonymous=True)
+
+        self.rgb_pub = rospy.Publisher('/camera/color/image_raw', Image, queue_size=10)
+        self.depth_pub = rospy.Publisher('/camera/depth/image_raw', Image, queue_size=10)
 
     def connect(self):
         # Start and configure
@@ -57,6 +64,20 @@ class RealSenseCamera:
             'aligned_depth': depth_image,
         }
 
+    def publish_images(self):
+        images = self.get_image_bundle()
+
+        rgb = images['rgb']
+        depth = images['aligned_depth']
+
+        try:
+            ros_rgb = self.bridge.cv2_to_imgmsg(rgb, encoding="rgb8")
+            ros_depth = self.bridge.cv2_to_imgmsg(depth, encoding="32FC1")
+            self.rgb_pub.publish(ros_rgb)
+            self.depth_pub.publish(ros_depth)
+        except CvBridgeError as e:
+            rospy.logerr(f"Error converting images: {e}")
+
     def plot_image_bundle(self):
         images = self.get_image_bundle()
 
@@ -72,9 +93,10 @@ class RealSenseCamera:
 
         plt.show()
 
-
 if __name__ == '__main__':
     cam = RealSenseCamera(device_id=830112070066)
     cam.connect()
-    while True:
-        cam.plot_image_bundle()
+    rate = rospy.Rate(10)  # 10 Hz
+    while not rospy.is_shutdown():
+        cam.publish_images()
+        rate.sleep()
