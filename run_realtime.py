@@ -70,6 +70,8 @@ def run():
         while not rospy.is_shutdown():
             image_bundle = cam.get_image_bundle()
             rgb = image_bundle['rgb']
+            cam.publish_images()
+            
             print(np.shape(rgb))
             
             depth = image_bundle['aligned_depth']
@@ -122,13 +124,13 @@ def run():
                 #            grasps=grasps,
                 #            save=False)
                 
-                plot_results(fig=fig,
-                             rgb_img=cam_data.get_rgb(rgb, False),
-                             depth_img=np.squeeze(cam_data.get_depth(depth)),
-                             grasp_q_img=q_img,
-                             grasp_angle_img=ang_img,
-                             no_grasps=args.n_grasps,
-                             grasp_width_img=width_img)
+                # plot_results(fig=fig,
+                #              rgb_img=cam_data.get_rgb(rgb, False),
+                #              depth_img=np.squeeze(cam_data.get_depth(depth)),
+                #              grasp_q_img=q_img,
+                #              grasp_angle_img=ang_img,
+                #              no_grasps=args.n_grasps,
+                #              grasp_width_img=width_img)
                 
                 rate.sleep()
     

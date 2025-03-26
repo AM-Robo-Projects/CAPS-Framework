@@ -11,7 +11,7 @@ import random
 
 #TODO
 
-MODEL_PATH = '/home/abdelrahman/CAPS-Framework/3objectsDetection/best.pt'
+MODEL_PATH = '/home/leitrechner/CAPS-Framework-/yolov11/100Epochs_640_3Objects/best.pt'
 
 class TruckObjectDetection:
     """!
@@ -38,7 +38,7 @@ class TruckObjectDetection:
 
         
         self._truckObjectDetection = YOLO(MODEL_PATH)
-        self.DETECTION_THRESHOLD = 0.75
+        self.DETECTION_THRESHOLD = 0.8
         self.DESICION_THRESHOLD = 0.5
 
         self._objDetImg = None
@@ -241,6 +241,6 @@ class TruckObjectDetection:
 
     
 if __name__ == "__main__":
-    rgb_topic = "/camera/color/image_raw"
+    rgb_topic = "/Image/color/image_raw"
     cable = TruckObjectDetection(MODEL_PATH,rgb_topic)
     cable.runRos()

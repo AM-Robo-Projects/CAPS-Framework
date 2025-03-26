@@ -26,8 +26,8 @@ class RealSenseCamera:
         self.bridge = CvBridge()
         #rospy.init_node('camera', anonymous=True)
 
-        self.rgb_pub = rospy.Publisher('/camera/color/image_raw', Image, queue_size=10)
-        self.depth_pub = rospy.Publisher('/camera/depth/image_raw', Image, queue_size=10)
+        self.rgb_pub = rospy.Publisher('/Image/color/image_raw', Image, queue_size=10)
+        
 
     def connect(self):
         # Start and configure
@@ -51,12 +51,13 @@ class RealSenseCamera:
         align = rs.align(rs.stream.color)
         aligned_frames = align.process(frames)
         color_frame = aligned_frames.first(rs.stream.color)
+
         aligned_depth_frame = aligned_frames.get_depth_frame()
 
         depth_image = np.asarray(aligned_depth_frame.get_data(), dtype=np.float32)
         depth_image *= self.scale
-        color_image = np.asanyarray(color_frame.get_data())
-
+        
+        color_image = np.asanyarray(color_frame.get_data())  
         depth_image = np.expand_dims(depth_image, axis=2)
 
         return {
@@ -68,13 +69,11 @@ class RealSenseCamera:
         images = self.get_image_bundle()
 
         rgb = images['rgb']
-        depth = images['aligned_depth']
-
         try:
+            print ("going in the color image ")
             ros_rgb = self.bridge.cv2_to_imgmsg(rgb, encoding="rgb8")
-            ros_depth = self.bridge.cv2_to_imgmsg(depth, encoding="32FC1")
             self.rgb_pub.publish(ros_rgb)
-            self.depth_pub.publish(ros_depth)
+           
         except CvBridgeError as e:
             rospy.logerr(f"Error converting images: {e}")
 
@@ -94,7 +93,7 @@ class RealSenseCamera:
         plt.show()
 
 if __name__ == '__main__':
-    cam = RealSenseCamera(device_id=830112070066)
+    cam = RealSenseCamera(device_id=247122070300)
     cam.connect()
     rate = rospy.Rate(10)  # 10 Hz
     while not rospy.is_shutdown():

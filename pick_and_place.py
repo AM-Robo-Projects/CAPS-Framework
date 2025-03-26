@@ -3,96 +3,113 @@
 import rospy
 import time
 import tf2_ros
+import math
+
 from geometry_msgs.msg import Pose, TransformStamped
+from std_msgs.msg import Float64MultiArray
 from rmp2_ros.srv import goal,goalResponse
 from ur_ros_driver.srv import SetGripper, SetGripperRequest
 from rmp2_ros.srv import SetCollRadii, SetCollRadiiRequest
 from rmp2_ros.msg import Radii
 
-def pose_distance(pose, transform_stamped):
-    # Calculate the Euclidean distance between two poses
-    dx = pose.position.x - transform_stamped.transform.translation.x
-    dy = pose.position.y - transform_stamped.transform.translation.y
-    dz = pose.position.z - transform_stamped.transform.translation.z
-    distance = (dx ** 2 + dy ** 2 + dz ** 2) ** 0.5
-    return distance
 
-def compare_pose_with_transform(pose):
-   
-    global tf_buffer
-    # Wait for the transform between "base_link" and "tcp_link"
-    while not rospy.is_shutdown():
+class PickPlace:
+
+    def __init__(self):
+        
+        rospy.init_node("PickPlace")
+        grasp_pose = rospy.Subscriber ("/result",Float64MultiArray,self.get_grasp_pose,queue_size=1)
+
+    
+    def get_grasp_pose (self,msg) : 
+        
+        pos_x = msg [0]
+        pos_y = msg [1]
+        pos_z = msg [2]
+        rot_z = msg [3]
+        
+        q_x = 0.0 
+        q_y = 0.0
+        q_z = math.sin(rot_z / 2)
+        q_w = math.cos(rot_z / 2)
+        
+
+    def compare_pose_with_transform(pose):
+    
+        global tf_buffer
+        # Wait for the transform between "base_link" and "tcp_link"
+        while not rospy.is_shutdown():
+            try:
+                transform_stamped = tf_buffer.lookup_transform("base_link", "tcp_link", rospy.Time(), rospy.Duration(1.0))
+                break
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                rospy.logwarn("Failed to lookup transform between 'base_link' and 'tcp_link'. Retrying...")
+
+        # Calculate the distance between the original pose and the transformed pose
+        distance = pose_distance(pose, transform_stamped)
+        print(distance)
+        return distance
+
+    def array_to_pose(array):
+        if len(array) != 7:
+            print("Error: Input array must have 7 elements")
+            return None
+
+        pose = Pose()
+        pose.position.x = array[0]
+        pose.position.y = array[1]
+        pose.position.z = array[2]
+        pose.orientation.x = array[3]
+        pose.orientation.y = array[4]
+        pose.orientation.z = array[5]
+        pose.orientation.w = array[6]
+
+        return pose
+
+    def send_pose_to_rmp_goal(pose):
+        rospy.wait_for_service('set_rmp_goal')
         try:
-            transform_stamped = tf_buffer.lookup_transform("base_link", "tcp_link", rospy.Time(), rospy.Duration(1.0))
-            break
-        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-            rospy.logwarn("Failed to lookup transform between 'base_link' and 'tcp_link'. Retrying...")
+            set_rmp_goal = rospy.ServiceProxy('set_rmp_goal', goal)
+            resp = set_rmp_goal(pose)
+            return resp
+        except rospy.ServiceException as e:
+            print("Service call failed:", e)
 
-    # Calculate the distance between the original pose and the transformed pose
-    distance = pose_distance(pose, transform_stamped)
-    print(distance)
-    return distance
+    def send_gripper_request(position, speed = 100, force = 100):
+        rospy.wait_for_service('/ur_hardware_interface/robotiq/set_gripper')
+        try:
+            set_gripper = rospy.ServiceProxy('/ur_hardware_interface/robotiq/set_gripper', SetGripper)
+            req = SetGripperRequest()
+            req.position_unit = 0
+            req.position = position
+            req.speed = speed
+            req.force = force
+            req.asynchronous = 0
+            resp = set_gripper(req)
+            return resp
+        except rospy.ServiceException as e:
+            print("Service call failed:", e)
 
-def array_to_pose(array):
-    if len(array) != 7:
-        print("Error: Input array must have 7 elements")
-        return None
+    def move_to_pose(pose):
+        resp_rmp = send_pose_to_rmp_goal(pose)
+        while(compare_pose_with_transform(pose)>0.02):
+            time.sleep(0.2)
 
-    pose = Pose()
-    pose.position.x = array[0]
-    pose.position.y = array[1]
-    pose.position.z = array[2]
-    pose.orientation.x = array[3]
-    pose.orientation.y = array[4]
-    pose.orientation.z = array[5]
-    pose.orientation.w = array[6]
+    def add_radius(name,radius,srv):
+        msg = Radii()
+        msg.joint = name
+        msg.radius = radius
+        # msg.interpolation_pts = int_points
+        srv.radii.append(msg)
 
-    return pose
-
-def send_pose_to_rmp_goal(pose):
-    rospy.wait_for_service('set_rmp_goal')
-    try:
-        set_rmp_goal = rospy.ServiceProxy('set_rmp_goal', goal)
-        resp = set_rmp_goal(pose)
-        return resp
-    except rospy.ServiceException as e:
-        print("Service call failed:", e)
-
-def send_gripper_request(position, speed = 100, force = 100):
-    rospy.wait_for_service('/ur_hardware_interface/robotiq/set_gripper')
-    try:
-        set_gripper = rospy.ServiceProxy('/ur_hardware_interface/robotiq/set_gripper', SetGripper)
-        req = SetGripperRequest()
-        req.position_unit = 0
-        req.position = position
-        req.speed = speed
-        req.force = force
-        req.asynchronous = 0
-        resp = set_gripper(req)
-        return resp
-    except rospy.ServiceException as e:
-        print("Service call failed:", e)
-
-def move_to_pose(pose):
-    resp_rmp = send_pose_to_rmp_goal(pose)
-    while(compare_pose_with_transform(pose)>0.02):
-        time.sleep(0.2)
-
-def add_radius(name,radius,srv):
-    msg = Radii()
-    msg.joint = name
-    msg.radius = radius
-    # msg.interpolation_pts = int_points
-    srv.radii.append(msg)
-
-def send_srv(srv):
-    rospy.wait_for_service('/set_coll_radii')
-    try:
-        print(srv)
-        set_rmp_goal = rospy.ServiceProxy('/set_coll_radii', SetCollRadii)
-        resp = set_rmp_goal(srv)
-        return resp
-    except rospy.ServiceException as e:
+    def send_srv(srv):
+        rospy.wait_for_service('/set_coll_radii')
+        try:
+            print(srv)
+            set_rmp_goal = rospy.ServiceProxy('/set_coll_radii', SetCollRadii)
+            resp = set_rmp_goal(srv)
+            return resp
+        except rospy.ServiceException as e:
         print("Service call failed:", e)
 
 if __name__ == '__main__':
@@ -101,19 +118,6 @@ if __name__ == '__main__':
      # Initialize TF2 listener
     tf_buffer = tf2_ros.Buffer()
     tf_listener = tf2_ros.TransformListener(tf_buffer)
-
-    # Example array representing pose
-    pose_1A = array_to_pose([-0.197, 0.523, 0.3, -0.707, 0.707, 0.0, 0.0])
-    pose_1CA = array_to_pose([-0.197, 0.523, 0.1, -0.707, 0.707, 0.0, 0.0])
-    pose_1 = array_to_pose([-0.197, 0.523, 0.025, -0.707, 0.707, 0.0, 0.0])
-    pose_2A = array_to_pose([0.085, 0.608, 0.3, 0.0, 1.0, 0.0, 0.0])
-    pose_2CA = array_to_pose([0.085, 0.608, 0.08, 0.0, 1.0, 0.0, 0.0])
-    pose_2 = array_to_pose([0.085, 0.608, 0.015, 0.0, 1.0, 0.0, 0.0])
-
-    # pose_3A = array_to_pose([0.10, 0.71, 0.193, 0.0, 1.0, 0.0, 0.0])
-    # pose_3 = array_to_pose([0.10, 0.71, -0.012, 0.0, 1.0, 0.0, 0.0])
-    pose_4A = array_to_pose([0.0, 0.53, 0.25, 0.0, 1.0, 0.0, 0.0])
-    pose_5A = array_to_pose([-0.53, 0.03, 0.25, 0.0, 1.0, 0.0, 0.0])
 
     srv_1 = SetCollRadiiRequest()
     add_radius("tcp_joint",-1,srv_1)
